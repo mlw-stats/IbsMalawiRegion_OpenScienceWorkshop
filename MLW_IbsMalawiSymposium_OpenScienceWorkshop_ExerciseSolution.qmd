@@ -1,0 +1,88 @@
+---
+title: "Open science workshop - exercise solution"
+author: "Marc Henrion"
+date: "25 August 2023"
+output: html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(tidyverse) # so that we can use ggplot2 and other tidyverse packages
+```
+
+## Simulate and write the data
+
+In the code chunk below, a simple dataset is simulated.
+
+The code also writes that dataset to a file on your harddrive so you have it for future reference.
+
+```{r simData}
+set.seed(202012) # this will allow you to EXACTLY replicate the same dataset and results
+
+# simulate data
+dat<-data.frame(
+  type=factor(sample(c("A","B"),size=100,prob=c(0.6,0.4),replace=T)),
+  x=rnorm(100,sd=5),
+  y=rexp(100)
+)
+
+dat$z<-ifelse(dat$type=="A", 2*dat$x-dat$y+5, 1.25*dat$x-0.5*dat$y+1) + rnorm(100,sd=1.25)
+
+# save data to disk
+if(!dir.exists("dataAndSupportDocs")){dir.create("dataAndSupportDocs",recursive=T)}
+save(dat,file="dataAndSupportDocs/dat.rda")
+```
+
+## Simple analyses and graphs
+
+### t-test
+
+Let's do a t-test first, comparing the sample means of variable `z` between the two groups defined by the variable `type`.
+
+```{r ttest}
+resTest<-t.test(z~type,data=dat)
+print(resTest)
+```
+
+Given that the p-value for this is `r resTest$p.value`, we conclude that there is `r ifelse(resTest$p.value<0.05,"sufficient","insufficient")` evidence, at the significance level $\alpha=0.05$ to reject the null hypothesis of equal sample means in both groups.
+
+This conclusion is conditional on the sample means to be approximately normally distributed.
+
+```{r boxplot, fig.width=8, fig.height=5}
+dat %>%
+  ggplot(mapping=aes(x=type,y=z,col=type)) +
+  geom_boxplot(alpha=0.5) +
+  geom_jitter(width=0.25,height=0) +
+  xlab("Type") +
+  ylab("z") +
+  ggtitle(paste(sep="","p = ",round(digits=4,resTest$p.value))) +
+  scale_colour_manual(values=c("steelblue","orange"))
+```
+
+### Linear regression
+
+Next let's do a regression analysis, estimating a model for `z` as a function of `x`.
+
+```{r linReg}
+resLinMod<-glm(z~x,family=gaussian,data=dat)
+print(summary(resLinMod))
+
+p<-summary(resLinMod)$coefficients["x","Pr(>|t|)"]
+```
+
+The regression coefficient for x is $\beta_1=$ `r coef(resLinMod)["x"]`. The associated p-value for the null hypothesis test of $H_0:\beta_1=0$ against $H_1: \beta_1\neq0$ is $p=$ `r p`. Since this is `r ifelse(p<0.05,"less than","greater or equal than")` 0.05, we `r ifelse(p<0.05,"reject","do not reject")` $H_0$.
+
+
+### Graph
+
+Finally, let's plot this regression model, while highlighting the 2 groups of observations within the data. Looking at this, we may want to consider adding an interaction term between the variables `x` and `type` to the model - but that's beyond this exercise.
+
+```{r linRegPlot, fig.width=8, fig.height=4.5}
+dat %>%
+  ggplot(mapping=aes(x=x,y=z,col=type)) +
+  geom_point() +
+  geom_smooth(method="lm",col="black",lty=2,lwd=1.25) + # here we actually refit the same model rather than using the model object from earlier -- easier to code for this example
+  scale_colour_manual(values=c("steelblue","orange")) +
+  ggtitle("Linear regression model for z regressed on x.")
+```
