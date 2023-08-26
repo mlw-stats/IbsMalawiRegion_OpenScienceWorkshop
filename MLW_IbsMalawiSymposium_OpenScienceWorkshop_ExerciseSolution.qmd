@@ -22,12 +22,13 @@ set.seed(202012) # this will allow you to EXACTLY replicate the same dataset and
 
 # simulate data
 dat<-data.frame(
-  type=factor(sample(c("A","B"),size=100,prob=c(0.6,0.4),replace=T)),
+  type=sample(c("A","B"),size=100,prob=c(0.6,0.4),replace=T),
   x=rnorm(100,sd=5),
   y=rexp(100)
-)
-
-dat$z<-ifelse(dat$type=="A", 2*dat$x-dat$y+5, 1.25*dat$x-0.5*dat$y+1) + rnorm(100,sd=1.25)
+) %>%
+  mutate(
+    z=ifelse(type=="A", 2*x-y+5, 1.25*x-0.5*y+1) + rnorm(100,sd=1.25)
+  )
 
 # save data to disk
 if(!dir.exists("dataAndSupportDocs")){dir.create("dataAndSupportDocs",recursive=T)}
